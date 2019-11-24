@@ -31,6 +31,7 @@ fn raw_symbol(input: &[u8]) -> IResult<&[u8], &[u8]> {
         tag(b"He"),
         tag(b"H"),
         tag(b"C"),
+        tag(b"Na"),
         // TODO: full list
     ))(input)
 }
@@ -134,13 +135,18 @@ fn atom(input: &[u8]) -> IResult<&[u8], Atom> {
 pub struct BranchedAtom {
     atom: Atom,
     ring_bonds: Vec<RingBond>,
-    // TODO: branches: Vec<Branch>,
+    branches: Vec<Branch>,
 }
 
 fn branched_atom(input: &[u8]) -> IResult<&[u8], BranchedAtom> {
-    map(tuple((atom, many0(ring_bond))), |(atom, ring_bonds)| {
-        BranchedAtom { atom, ring_bonds }
-    })(input)
+    map(
+        tuple((atom, many0(ring_bond), many0(branch))),
+        |(atom, ring_bonds, branches)| BranchedAtom {
+            atom,
+            ring_bonds,
+            branches,
+        },
+    )(input)
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -207,19 +213,55 @@ fn ring_bond(input: &[u8]) -> IResult<&[u8], RingBond> {
 #[derive(Debug, PartialEq, Eq)]
 pub struct Chain {
     chain: Option<Box<Chain>>,
-    bond: Option<Bond>,
+    bond_or_dot: Option<BondOrDot>,
     branched_atom: BranchedAtom,
-    // TODO: other fields
 }
 
 fn chain(input: &[u8]) -> IResult<&[u8], Chain> {
     map(
-        tuple((branched_atom, opt(bond), opt(chain))),
-        |(branched_atom, bond, chain)| Chain {
+        tuple((branched_atom, opt(bond_or_dot), opt(chain))),
+        |(branched_atom, bond_or_dot, chain)| Chain {
             chain: chain.map(|n| Box::new(n)),
-            bond,
+            bond_or_dot,
             branched_atom,
         },
+    )(input)
+}
+
+// Symbol for non-connected parts of compound
+#[derive(Debug, PartialEq, Eq)]
+pub struct Dot;
+
+fn dot(input: &[u8]) -> IResult<&[u8], Dot> {
+    map(tag(b"."), |_| Dot)(input)
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum BondOrDot {
+    Bond(Bond),
+    Dot(Dot),
+}
+
+fn bond_or_dot(input: &[u8]) -> IResult<&[u8], BondOrDot> {
+    alt((
+        map(bond, |inner| BondOrDot::Bond(inner)),
+        map(dot, |inner| BondOrDot::Dot(inner)),
+    ))(input)
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct Branch {
+    bond_or_dot: Option<BondOrDot>,
+    chain: Chain,
+}
+
+fn branch(input: &[u8]) -> IResult<&[u8], Branch> {
+    delimited(
+        char('('),
+        map(tuple((opt(bond_or_dot), chain)), |(bond_or_dot, chain)| {
+            Branch { bond_or_dot, chain }
+        }),
+        char(')'),
     )(input)
 }
 
@@ -298,20 +340,22 @@ mod tests {
                 Chain {
                     chain: Some(Box::new(Chain {
                         chain: None,
-                        bond: None,
+                        bond_or_dot: None,
                         branched_atom: BranchedAtom {
                             atom: Atom::AliphaticOrganic(AliphaticOrganicAtom {
                                 element: Element::Carbon
                             }),
-                            ring_bonds: vec![]
+                            ring_bonds: vec![],
+                            branches: vec![]
                         }
                     })),
-                    bond: None,
+                    bond_or_dot: None,
                     branched_atom: BranchedAtom {
                         atom: Atom::AliphaticOrganic(AliphaticOrganicAtom {
                             element: Element::Carbon
                         }),
-                        ring_bonds: vec![]
+                        ring_bonds: vec![],
+                        branches: vec![]
                     }
                 }
             )),
@@ -327,20 +371,22 @@ mod tests {
                 Chain {
                     chain: Some(Box::new(Chain {
                         chain: None,
-                        bond: None,
+                        bond_or_dot: None,
                         branched_atom: BranchedAtom {
                             atom: Atom::AliphaticOrganic(AliphaticOrganicAtom {
                                 element: Element::Fluorine
                             }),
-                            ring_bonds: vec![]
+                            ring_bonds: vec![],
+                            branches: vec![]
                         }
                     })),
-                    bond: None,
+                    bond_or_dot: None,
                     branched_atom: BranchedAtom {
                         atom: Atom::AliphaticOrganic(AliphaticOrganicAtom {
                             element: Element::Carbon
                         }),
-                        ring_bonds: vec![]
+                        ring_bonds: vec![],
+                        branches: vec![]
                     }
                 }
             )),
@@ -356,20 +402,22 @@ mod tests {
                 Chain {
                     chain: Some(Box::new(Chain {
                         chain: None,
-                        bond: None,
+                        bond_or_dot: None,
                         branched_atom: BranchedAtom {
                             atom: Atom::AliphaticOrganic(AliphaticOrganicAtom {
                                 element: Element::Carbon
                             }),
-                            ring_bonds: vec![]
+                            ring_bonds: vec![],
+                            branches: vec![]
                         }
                     })),
-                    bond: Some(Bond::Double),
+                    bond_or_dot: Some(BondOrDot::Bond(Bond::Double)),
                     branched_atom: BranchedAtom {
                         atom: Atom::AliphaticOrganic(AliphaticOrganicAtom {
                             element: Element::Carbon
                         }),
-                        ring_bonds: vec![]
+                        ring_bonds: vec![],
+                        branches: vec![]
                     }
                 }
             )),
@@ -379,7 +427,7 @@ mod tests {
 
     // 1-Oxaspiro[2.5]octane
     #[test]
-    #[ignore]
+    // #[ignore]
     fn ring_and_branch_chain() {
         let chain = chain(b"C1CCC2(CC1)CO2");
         assert!(chain.is_ok());
@@ -394,4 +442,35 @@ mod tests {
         assert!(chain.is_ok());
         assert!(chain.unwrap().0.is_empty());
     }
+
+    // TODO: proper structure for charge
+    // #[test]
+    // #[ignore]
+    // fn chain_sodium_chloride() {
+    // assert_eq!(
+    // Ok((
+    // "".as_bytes(),
+    // Chain {
+    // chain: Some(Box::new(Chain {
+    // chain: None,
+    // bond_or_dot: None,
+    // branched_atom: BranchedAtom {
+    // atom: Atom::AliphaticOrganic(AliphaticOrganicAtom {
+    // element: Element::Carbon
+    // }),
+    // ring_bonds: vec![]
+    // }
+    // })),
+    // bond_or_dot: Some(BondOrDot::Dot),
+    // branched_atom: BranchedAtom {
+    // atom: Atom::AliphaticOrganic(AliphaticOrganicAtom {
+    // element: Element::Carbon
+    // }),
+    // ring_bonds: vec![]
+    // }
+    // }
+    // )),
+    // chain(b"[Na+].[Cl-]")
+    // );
+    // }
 }
