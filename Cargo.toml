@@ -10,4 +10,4 @@ repository = "https://github.com/hobofan/smiles-parser"
 
 [dependencies]
 nom = "5.0.1"
-basechem = "0.1.0"
+ptable = "0.3.2"

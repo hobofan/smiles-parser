@@ -1,7 +1,6 @@
 #[macro_use]
 extern crate nom;
 
-use basechem::Element;
 use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::bytes::complete::take_while_m_n;
@@ -16,6 +15,7 @@ use nom::sequence::delimited;
 use nom::sequence::preceded;
 use nom::sequence::tuple;
 use nom::IResult;
+use ptable::Element;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Symbol {
@@ -427,9 +427,24 @@ mod tests {
 
     // 1-Oxaspiro[2.5]octane
     #[test]
-    // #[ignore]
     fn ring_and_branch_chain() {
         let chain = chain(b"C1CCC2(CC1)CO2");
+        assert!(chain.is_ok());
+        assert!(chain.unwrap().0.is_empty());
+    }
+
+    // Isobutane
+    #[test]
+    fn branch_isobutane() {
+        let chain = chain(b"CC(C)C");
+        assert!(chain.is_ok());
+        assert!(chain.unwrap().0.is_empty());
+    }
+
+    // Neopentane
+    #[test]
+    fn branch_neopentane() {
+        let chain = chain(b"CC(C)(C)C");
         assert!(chain.is_ok());
         assert!(chain.unwrap().0.is_empty());
     }
