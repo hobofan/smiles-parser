@@ -1,6 +1,3 @@
-#[macro_use]
-extern crate nom;
-
 use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::bytes::complete::take_while_m_n;
@@ -9,7 +6,6 @@ use nom::character::is_digit;
 use nom::combinator::map;
 use nom::combinator::map_res;
 use nom::combinator::opt;
-use nom::multi::count;
 use nom::multi::many0;
 use nom::sequence::delimited;
 use nom::sequence::preceded;
@@ -17,7 +13,7 @@ use nom::sequence::tuple;
 use nom::IResult;
 use ptable::Element;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Symbol {
     ElementSymbol(Element),
     // AromaticSymbol not supported
@@ -49,7 +45,7 @@ fn symbol(input: &[u8]) -> IResult<&[u8], Symbol> {
     })(input)
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct BracketAtom {
     pub isotope: Option<u16>,
     pub symbol: Symbol,
@@ -82,7 +78,7 @@ fn bracket_atom(input: &[u8]) -> IResult<&[u8], BracketAtom> {
     )(input)
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct AliphaticOrganicAtom {
     pub element: Element,
 }
@@ -113,7 +109,7 @@ fn aliphatic_organic_atom(input: &[u8]) -> IResult<&[u8], AliphaticOrganicAtom> 
     })(input)
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Atom {
     Bracket(BracketAtom),
     AliphaticOrganic(AliphaticOrganicAtom),
@@ -131,11 +127,11 @@ fn atom(input: &[u8]) -> IResult<&[u8], Atom> {
     ))(input)
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct BranchedAtom {
-    atom: Atom,
-    ring_bonds: Vec<RingBond>,
-    branches: Vec<Branch>,
+    pub atom: Atom,
+    pub ring_bonds: Vec<RingBond>,
+    pub branches: Vec<Branch>,
 }
 
 fn branched_atom(input: &[u8]) -> IResult<&[u8], BranchedAtom> {
@@ -149,7 +145,7 @@ fn branched_atom(input: &[u8]) -> IResult<&[u8], BranchedAtom> {
     )(input)
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Bond {
     Single,
     Double,
@@ -185,10 +181,10 @@ fn bond(input: &[u8]) -> IResult<&[u8], Bond> {
     })(input)
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct RingBond {
-    bond: Option<Bond>,
-    ring_number: u8,
+    pub bond: Option<Bond>,
+    pub ring_number: u8,
 }
 
 fn bond_digits(input: &[u8]) -> IResult<&[u8], u8> {
@@ -210,14 +206,14 @@ fn ring_bond(input: &[u8]) -> IResult<&[u8], RingBond> {
     })(input)
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Chain {
-    chain: Option<Box<Chain>>,
-    bond_or_dot: Option<BondOrDot>,
-    branched_atom: BranchedAtom,
+    pub chain: Option<Box<Chain>>,
+    pub bond_or_dot: Option<BondOrDot>,
+    pub branched_atom: BranchedAtom,
 }
 
-fn chain(input: &[u8]) -> IResult<&[u8], Chain> {
+pub fn chain(input: &[u8]) -> IResult<&[u8], Chain> {
     map(
         tuple((branched_atom, opt(bond_or_dot), opt(chain))),
         |(branched_atom, bond_or_dot, chain)| Chain {
@@ -229,14 +225,14 @@ fn chain(input: &[u8]) -> IResult<&[u8], Chain> {
 }
 
 // Symbol for non-connected parts of compound
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Dot;
 
 fn dot(input: &[u8]) -> IResult<&[u8], Dot> {
     map(tag(b"."), |_| Dot)(input)
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum BondOrDot {
     Bond(Bond),
     Dot(Dot),
@@ -249,10 +245,10 @@ fn bond_or_dot(input: &[u8]) -> IResult<&[u8], BondOrDot> {
     ))(input)
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Branch {
-    bond_or_dot: Option<BondOrDot>,
-    chain: Chain,
+    pub bond_or_dot: Option<BondOrDot>,
+    pub chain: Chain,
 }
 
 fn branch(input: &[u8]) -> IResult<&[u8], Branch> {
