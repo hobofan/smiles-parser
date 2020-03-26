@@ -1,3 +1,6 @@
+#[cfg(feature = "graph")]
+pub mod graph;
+
 use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::bytes::complete::take_while_m_n;
