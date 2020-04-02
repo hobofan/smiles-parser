@@ -16,7 +16,7 @@ use nom::sequence::tuple;
 use nom::IResult;
 use ptable::Element;
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Ord, PartialOrd, Copy, Clone, Hash)]
 pub enum Symbol {
     ElementSymbol(Element),
     // AromaticSymbol not supported
@@ -48,14 +48,71 @@ fn symbol(input: &[u8]) -> IResult<&[u8], Symbol> {
     })(input)
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Ord, PartialOrd, Copy, Clone, Hash)]
 pub struct BracketAtom {
     pub isotope: Option<u16>,
     pub symbol: Symbol,
     // TODO: chiral?
-    // TODO: hcount?
-    // TODO: charge?
+    pub hcount: u8,
+    pub charge: i8,
     // TODO: class?
+}
+
+fn charge(input: &[u8]) -> IResult<&[u8], i8> {
+    map(
+        many0(
+            map(
+                tuple((
+                    alt((
+                        tag("+"),
+                        tag("-")
+                    )),
+                    opt(
+                        map_res(
+                            map_res(
+                                take_while_m_n(1, 2, is_digit),
+                                |s: &[u8]| std::str::from_utf8(s)
+                            ),
+                            |s: &str| s.parse::<u8>(),
+                        )
+                    )
+                )),
+                |(tag, count): (&[u8], Option<u8>)| {
+                    let count = count.unwrap_or(1) as i8;
+                    if tag[0] == b'+' {
+                        count
+                    }
+                    else {
+                        -count
+                    }
+                }
+            )
+        ),
+        |v| v.into_iter().fold(0, |acc, x| acc + x)
+    )(input)
+}
+
+fn hcount(input: &[u8]) -> IResult<&[u8], u8> {
+    map(
+        opt(
+            map(
+                tuple((
+                    tag("H"),
+                    opt(
+                        map_res(
+                            map_res(
+                                take_while_m_n(1, 1, is_digit),
+                                |s: &[u8]| std::str::from_utf8(s)
+                            ),
+                            |s: &str| s.parse::<u8>(),
+                        )
+                    )
+                )),
+                |(_, count): (&[u8], Option<u8>)| count.unwrap_or(1)
+            )
+        ),
+        |res| res.unwrap_or(0)
+    )(input)
 }
 
 fn isotope_opt(input: &[u8]) -> IResult<&[u8], Option<u16>> {
@@ -71,17 +128,19 @@ fn bracket_atom(input: &[u8]) -> IResult<&[u8], BracketAtom> {
     delimited(
         char('['),
         map(
-            tuple((isotope_opt, symbol)),
-            |(isotope, sym): (Option<u16>, Symbol)| BracketAtom {
+            tuple((isotope_opt, symbol, hcount, charge)),
+            |(isotope, sym, hcount, charge): (Option<u16>, Symbol, u8, i8)| BracketAtom {
                 isotope,
                 symbol: sym,
+                hcount,
+                charge,
             },
         ),
         char(']'),
     )(input)
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Ord, PartialOrd, Copy, Clone, Hash)]
 pub struct AliphaticOrganicAtom {
     pub element: Element,
 }
@@ -112,7 +171,7 @@ fn aliphatic_organic_atom(input: &[u8]) -> IResult<&[u8], AliphaticOrganicAtom> 
     })(input)
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Ord, PartialOrd, Copy, Clone, Hash)]
 pub enum Atom {
     Bracket(BracketAtom),
     AliphaticOrganic(AliphaticOrganicAtom),
@@ -130,7 +189,7 @@ fn atom(input: &[u8]) -> IResult<&[u8], Atom> {
     ))(input)
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Ord, PartialOrd, Clone, Hash)]
 pub struct BranchedAtom {
     pub atom: Atom,
     pub ring_bonds: Vec<RingBond>,
@@ -148,7 +207,7 @@ fn branched_atom(input: &[u8]) -> IResult<&[u8], BranchedAtom> {
     )(input)
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Ord, PartialOrd, Copy, Clone, Hash)]
 pub enum Bond {
     Single,
     Double,
@@ -184,7 +243,7 @@ fn bond(input: &[u8]) -> IResult<&[u8], Bond> {
     })(input)
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Ord, PartialOrd, Copy, Clone, Hash)]
 pub struct RingBond {
     pub bond: Option<Bond>,
     pub ring_number: u8,
@@ -209,7 +268,7 @@ fn ring_bond(input: &[u8]) -> IResult<&[u8], RingBond> {
     })(input)
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Ord, PartialOrd, Clone, Hash)]
 pub struct Chain {
     pub chain: Option<Box<Chain>>,
     pub bond_or_dot: Option<BondOrDot>,
@@ -228,14 +287,14 @@ pub fn chain(input: &[u8]) -> IResult<&[u8], Chain> {
 }
 
 // Symbol for non-connected parts of compound
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Ord, PartialOrd, Copy, Clone, Hash)]
 pub struct Dot;
 
 fn dot(input: &[u8]) -> IResult<&[u8], Dot> {
     map(tag(b"."), |_| Dot)(input)
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Ord, PartialOrd, Copy, Clone, Hash)]
 pub enum BondOrDot {
     Bond(Bond),
     Dot(Dot),
@@ -248,7 +307,7 @@ fn bond_or_dot(input: &[u8]) -> IResult<&[u8], BondOrDot> {
     ))(input)
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Ord, PartialOrd, Clone, Hash)]
 pub struct Branch {
     pub bond_or_dot: Option<BondOrDot>,
     pub chain: Chain,
@@ -293,9 +352,11 @@ mod tests {
                 BracketAtom {
                     isotope: Some(16),
                     symbol: Symbol::ElementSymbol(Element::Carbon),
+                    hcount: 0,
+                    charge: -2,
                 }
             )),
-            bracket_atom(b"[16C]")
+            bracket_atom(b"[16C--]")
         );
         assert_eq!(
             Ok((
@@ -303,9 +364,11 @@ mod tests {
                 BracketAtom {
                     isotope: Some(16),
                     symbol: Symbol::ElementSymbol(Element::Carbon),
+                    hcount: 1,
+                    charge: 3,
                 }
             )),
-            bracket_atom(b"[16C]CC")
+            bracket_atom(b"[16CH+3]CC")
         );
     }
 
@@ -324,6 +387,8 @@ mod tests {
                 Atom::Bracket(BracketAtom {
                     isotope: Some(16),
                     symbol: Symbol::ElementSymbol(Element::Carbon),
+                    hcount: 0,
+                    charge: 0,
                 })
             )),
             atom(b"[16C]")
