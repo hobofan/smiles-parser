@@ -3,8 +3,8 @@ name = "smiles-parser"
 version = "0.3.0"
 authors = ["Maximilian Goisser <goisser94@gmail.com>"]
 edition = "2018"
-description = "SMILES parser"
-keywords = ["chemistry", "SMILES", "parser"]
+description = "SMILES (chemical formula) parser based on the OpenSMILES spec"
+keywords = ["chemistry", "SMILES", "parser", "OpenSMILES", "formula"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/hobofan/smiles-parser"
 
