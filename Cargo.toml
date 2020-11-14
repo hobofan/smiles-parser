@@ -9,7 +9,7 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/hobofan/smiles-parser"
 
 [dependencies]
-nom = "5.0.1"
+nom = "6.0.0"
 ptable = {package = "periodic-table-on-an-enum", version = "0.3"}
 
 petgraph = { version = "0.5.0", optional = true }
