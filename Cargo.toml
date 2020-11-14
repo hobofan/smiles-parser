@@ -1,6 +1,6 @@
 [package]
 name = "smiles-parser"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Maximilian Goisser <goisser94@gmail.com>"]
 edition = "2018"
 description = "SMILES (chemical formula) parser based on the OpenSMILES spec"
