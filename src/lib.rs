@@ -27,11 +27,134 @@ fn raw_symbol(input: &[u8]) -> IResult<&[u8], &[u8]> {
     alt((
         tag(b"*"),
         // Two letter symbols have to appear before one letter symbols or they won't be recognized
-        tag(b"He"),
-        tag(b"H"),
-        tag(b"C"),
-        tag(b"Na"),
-        // TODO: full list
+        alt((
+            tag(b"Ac"),
+            tag(b"Ag"),
+            tag(b"Al"),
+            tag(b"Am"),
+            tag(b"Ar"),
+            tag(b"As"),
+            tag(b"At"),
+            tag(b"Au"),
+            tag(b"Ba"),
+            tag(b"Be"),
+            tag(b"Bh"),
+            tag(b"Bi"),
+            tag(b"Bk"),
+            tag(b"Br"),
+            tag(b"Ca"),
+            tag(b"Cd"),
+            tag(b"Ce"),
+            tag(b"Cf"),
+            tag(b"Cl"),
+            tag(b"Cm"),
+        )),
+        alt((
+            tag(b"Cn"),
+            tag(b"Co"),
+            tag(b"Cr"),
+            tag(b"Cs"),
+            tag(b"Cu"),
+            tag(b"Db"),
+            tag(b"Ds"),
+            tag(b"Dy"),
+            tag(b"Er"),
+            tag(b"Es"),
+            tag(b"Eu"),
+            tag(b"Fe"),
+            tag(b"Fl"),
+            tag(b"Fm"),
+            tag(b"Fr"),
+            tag(b"Ga"),
+            tag(b"Gd"),
+            tag(b"Ge"),
+            tag(b"He"),
+            tag(b"Hf"),
+        )),
+        alt((
+            tag(b"Hg"),
+            tag(b"Ho"),
+            tag(b"Hs"),
+            tag(b"In"),
+            tag(b"Ir"),
+            tag(b"Kr"),
+            tag(b"La"),
+            tag(b"Li"),
+            tag(b"Lr"),
+            tag(b"Lu"),
+            tag(b"Lv"),
+            tag(b"Mc"),
+            tag(b"Md"),
+            tag(b"Mg"),
+            tag(b"Mn"),
+            tag(b"Mo"),
+            tag(b"Mt"),
+            tag(b"Na"),
+            tag(b"Nb"),
+            tag(b"Nd"),
+        )),
+        alt((
+            tag(b"Ne"),
+            tag(b"Nh"),
+            tag(b"Ni"),
+            tag(b"No"),
+            tag(b"Np"),
+            tag(b"Og"),
+            tag(b"Os"),
+            tag(b"Pa"),
+            tag(b"Pb"),
+            tag(b"Pd"),
+            tag(b"Pm"),
+            tag(b"Po"),
+            tag(b"Pr"),
+            tag(b"Pt"),
+            tag(b"Pu"),
+            tag(b"Ra"),
+            tag(b"Rb"),
+            tag(b"Re"),
+            tag(b"Rf"),
+            tag(b"Rg"),
+        )),
+        alt((
+            tag(b"Rh"),
+            tag(b"Rn"),
+            tag(b"Ru"),
+            tag(b"Sb"),
+            tag(b"Sc"),
+            tag(b"Se"),
+            tag(b"Sg"),
+            tag(b"Si"),
+            tag(b"Sm"),
+            tag(b"Sn"),
+            tag(b"Sr"),
+            tag(b"Ta"),
+            tag(b"Tb"),
+            tag(b"Tc"),
+            tag(b"Te"),
+            tag(b"Th"),
+            tag(b"Ti"),
+            tag(b"Tl"),
+            tag(b"Tm"),
+            tag(b"Ts"),
+        )),
+        alt((tag(b"Xe"), tag(b"Yb"), tag(b"Zn"), tag(b"Zr"))),
+        // Single letter
+        alt((
+            tag(b"B"),
+            tag(b"C"),
+            tag(b"F"),
+            tag(b"H"),
+            tag(b"I"),
+            tag(b"K"),
+            tag(b"N"),
+            tag(b"O"),
+            tag(b"P"),
+            tag(b"S"),
+            tag(b"U"),
+            tag(b"V"),
+            tag(b"W"),
+            tag(b"Y"),
+        )),
     ))(input)
 }
 
@@ -60,58 +183,44 @@ pub struct BracketAtom {
 
 fn charge(input: &[u8]) -> IResult<&[u8], i8> {
     map(
-        many0(
-            map(
-                tuple((
-                    alt((
-                        tag("+"),
-                        tag("-")
-                    )),
-                    opt(
-                        map_res(
-                            map_res(
-                                take_while_m_n(1, 2, is_digit),
-                                |s: &[u8]| std::str::from_utf8(s)
-                            ),
-                            |s: &str| s.parse::<u8>(),
-                        )
-                    )
+        many0(map(
+            tuple((
+                alt((tag("+"), tag("-"))),
+                opt(map_res(
+                    map_res(take_while_m_n(1, 2, is_digit), |s: &[u8]| {
+                        std::str::from_utf8(s)
+                    }),
+                    |s: &str| s.parse::<u8>(),
                 )),
-                |(tag, count): (&[u8], Option<u8>)| {
-                    let count = count.unwrap_or(1) as i8;
-                    if tag[0] == b'+' {
-                        count
-                    }
-                    else {
-                        -count
-                    }
+            )),
+            |(tag, count): (&[u8], Option<u8>)| {
+                let count = count.unwrap_or(1) as i8;
+                if tag[0] == b'+' {
+                    count
+                } else {
+                    -count
                 }
-            )
-        ),
-        |v| v.into_iter().fold(0, |acc, x| acc + x)
+            },
+        )),
+        |v| v.into_iter().fold(0, |acc, x| acc + x),
     )(input)
 }
 
 fn hcount(input: &[u8]) -> IResult<&[u8], u8> {
     map(
-        opt(
-            map(
-                tuple((
-                    tag("H"),
-                    opt(
-                        map_res(
-                            map_res(
-                                take_while_m_n(1, 1, is_digit),
-                                |s: &[u8]| std::str::from_utf8(s)
-                            ),
-                            |s: &str| s.parse::<u8>(),
-                        )
-                    )
+        opt(map(
+            tuple((
+                tag("H"),
+                opt(map_res(
+                    map_res(take_while_m_n(1, 1, is_digit), |s: &[u8]| {
+                        std::str::from_utf8(s)
+                    }),
+                    |s: &str| s.parse::<u8>(),
                 )),
-                |(_, count): (&[u8], Option<u8>)| count.unwrap_or(1)
-            )
-        ),
-        |res| res.unwrap_or(0)
+            )),
+            |(_, count): (&[u8], Option<u8>)| count.unwrap_or(1),
+        )),
+        |res| res.unwrap_or(0),
     )(input)
 }
 
