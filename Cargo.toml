@@ -1,12 +1,13 @@
 [package]
 name = "smiles-parser"
-version = "0.4.0"
+version = "0.4.1"
 authors = ["Maximilian Goisser <goisser94@gmail.com>"]
 edition = "2018"
 description = "SMILES (chemical formula) parser based on the OpenSMILES spec"
 keywords = ["chemistry", "SMILES", "parser", "OpenSMILES", "formula"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/hobofan/smiles-parser"
+readme = "README.md"
 
 [dependencies]
 nom = "6.0.0"
